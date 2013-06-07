@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "iE-iHNc",
+        "filename": "common.mk",
+        "patchSetId": 1
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 523
+      },
+      "writtenOn": "2013-06-07T22:37:52Z",
+      "side": 1,
+      "message": "whitespaces :-P",
+      "revId": "aab12df35793e093fb727257203c51bc2ca1263d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
