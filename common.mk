@@ -40,6 +40,10 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/gps/etc/sap.conf:/system/etc/sap.conf
 
 # RIL
+PRODUCT_PACKAGES += \
+    libsecril-client \
+    libsecril-client-sap
+
+# RIL
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.telephony.ril_class=smdk4x12QComRIL
-
