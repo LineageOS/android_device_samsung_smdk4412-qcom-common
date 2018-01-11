@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-
+#ifndef SIM_COUNT
 #if defined(ANDROID_SIM_COUNT_2)
 #define SIM_COUNT 2
 #elif defined(ANDROID_SIM_COUNT_3)
@@ -40,6 +40,7 @@ extern "C" {
 #define SIM_COUNT 4
 #else
 #define SIM_COUNT 1
+#endif
 #endif
 
 #ifndef ANDROID_MULTI_SIM
@@ -344,7 +345,17 @@ typedef enum {
     PREF_NET_TYPE_LTE_GSM_WCDMA            = 9, /* LTE, GSM/WCDMA */
     PREF_NET_TYPE_LTE_CMDA_EVDO_GSM_WCDMA  = 10, /* LTE, CDMA, EvDo, GSM/WCDMA */
     PREF_NET_TYPE_LTE_ONLY                 = 11, /* LTE only */
-    PREF_NET_TYPE_LTE_WCDMA                = 12  /* LTE/WCDMA */
+    PREF_NET_TYPE_LTE_WCDMA                = 12,  /* LTE/WCDMA */
+    PREF_NET_TYPE_TD_SCDMA_ONLY            = 13, /* TD-SCDMA only */
+    PREF_NET_TYPE_TD_SCDMA_WCDMA           = 14, /* TD-SCDMA and WCDMA */
+    PREF_NET_TYPE_TD_SCDMA_LTE             = 15, /* TD-SCDMA and LTE */
+    PREF_NET_TYPE_TD_SCDMA_GSM             = 16, /* TD-SCDMA and GSM */
+    PREF_NET_TYPE_TD_SCDMA_GSM_LTE         = 17, /* TD-SCDMA,GSM and LTE */
+    PREF_NET_TYPE_TD_SCDMA_GSM_WCDMA       = 18, /* TD-SCDMA, GSM/WCDMA */
+    PREF_NET_TYPE_TD_SCDMA_WCDMA_LTE       = 19, /* TD-SCDMA, WCDMA and LTE */
+    PREF_NET_TYPE_TD_SCDMA_GSM_WCDMA_LTE   = 20, /* TD-SCDMA, GSM/WCDMA and LTE */
+    PREF_NET_TYPE_TD_SCDMA_GSM_WCDMA_CDMA_EVDO_AUTO  = 21, /* TD-SCDMA, GSM/WCDMA, CDMA and EvDo */
+    PREF_NET_TYPE_TD_SCDMA_LTE_CDMA_EVDO_GSM_WCDMA   = 22  /* TD-SCDMA, LTE, CDMA, EvDo GSM/WCDMA */
 } RIL_PreferredNetworkType;
 
 /* Source for cdma subscription */
@@ -1010,11 +1021,6 @@ typedef struct
   int              pin1_replaced;   /* applicable to USIM, CSIM & ISIM */
   RIL_PinState     pin1;
   RIL_PinState     pin2;
-  int              foo1;            /* Samsung */
-  int              foo2;            /* Samsung */
-  int              foo3;            /* Samsung */
-  int              foo4;            /* Samsung */
-  int              foo5;            /* Samsung */
 } RIL_AppStatus;
 
 /* Deprecated, use RIL_CardStatus_v6 */
@@ -1742,6 +1748,31 @@ typedef struct {
    * the transmitter is inactive */
   uint32_t rx_mode_time_ms;
 } RIL_ActivityStatsInfo;
+
+typedef struct {
+    uint8_t p2; /* P2 parameter */
+    char * aidPtr; /* AID value, See ETSI 102.221 and 101.220*/
+
+} RIL_CafOpenChannelParams;
+
+#define RIL_NUM_ADN_RECORDS      10
+#define RIL_MAX_NUM_AD_COUNT     4
+#define RIL_MAX_NUM_EMAIL_COUNT  2
+
+typedef struct {
+    int       record_id;
+    char*     name;
+    char*     number;
+    int       email_elements;
+    char*     email[RIL_MAX_NUM_EMAIL_COUNT];
+    int       anr_elements;
+    char*     ad_number[RIL_MAX_NUM_AD_COUNT];
+} RIL_AdnRecordInfo;
+
+typedef struct {
+    int               record_elements;
+    RIL_AdnRecordInfo adn_record_info[RIL_NUM_ADN_RECORDS];
+} RIL_AdnRecord_v1;
 
 /**
  * RIL_REQUEST_GET_SIM_STATUS
@@ -4619,7 +4650,7 @@ typedef struct {
  * RIL_REQUEST_VOICE_RADIO_TECH
  *
  * Query the radio technology type (3GPP/3GPP2) used for voice. Query is valid only
- * when radio state is RADIO_STATE_ON
+ * when radio state is not RADIO_STATE_UNAVAILABLE
  *
  * "data" is NULL
  * "response" is int *
@@ -5184,63 +5215,81 @@ typedef struct {
  *  RIL_E_REQUEST_NOT_SUPPORTED
  */
 #define RIL_REQUEST_GET_CARRIER_RESTRICTIONS 137
+/**
+ * RIL_REQUEST_SIM_GET_ATR
+ *
+ * Get the ATR from SIM Card
+ *
+ * Only valid when radio state is "RADIO_STATE_ON"
+ *
+ * "data" is const int *
+ * ((const int *)data)[0] contains the slot index on the SIM from which ATR is requested.
+ *
+ * "response" is a const char * containing the ATR, See ETSI 102.221 8.1 and ISO/IEC 7816 3
+ *
+ * Valid errors:
+ *
+ * SUCCESS
+ * RADIO_NOT_AVAILABLE (radio resetting)
+ * GENERIC_FAILURE
+ */
+#define RIL_REQUEST_SIM_GET_ATR 138
 
-/***********************************************************************/
+/**
+ * RIL_REQUEST_CAF_SIM_OPEN_CHANNEL_WITH_P2
+ *
+ * Open a new logical channel and select the given application. This command
+ * reflects TS 27.007 "open logical channel" operation (+CCHO). This request
+ * also specifies the P2 parameter.
+ *
+ * "data" is a const RIL_CafOpenChannelParam *
+ *
+ * "response" is int *
+ * ((int *)data)[0] contains the session id of the logical channel.
+ * ((int *)data)[1] onwards may optionally contain the select response for the
+ *     open channel command with one byte per integer.
+ *
+ * Valid errors:
+ *  SUCCESS
+ *  RADIO_NOT_AVAILABLE
+ *  GENERIC_FAILURE
+ *  MISSING_RESOURCE
+ *  NO_SUCH_ELEMENT
+ */
+#define RIL_REQUEST_CAF_SIM_OPEN_CHANNEL_WITH_P2 139
 
-/* SAMSUNG REQUESTS */
-#undef RIL_REQUEST_SIM_OPEN_CHANNEL
-#undef RIL_REQUEST_SIM_CLOSE_CHANNEL
+/**
+ * RIL_REQUEST_GET_ADN_RECORD
+ *
+ * Requests ADN count record of the SIM card
+ *
+ * "data" is NULL
+ *
+ * "response" is const int *
+ * ((int *)data)[0] is the max adn count.
+ * ((int *)data)[1] is the valid adn count.
+ * ((int *)data)[2] is the max email count.
+ * ((int *)data)[3] is the max anr count.
+ *
+ * Valid errors:
+ *  SUCCESS
+ *  GENERIC_FAILURE
+ */
+#define RIL_REQUEST_GET_ADN_RECORD 140
 
-#define RIL_REQUEST_GET_CELL_BROADCAST_CONFIG 10002
-
-#define RIL_REQUEST_SEND_ENCODED_USSD 10005
-#define RIL_REQUEST_SET_PDA_MEMORY_STATUS 10006
-#define RIL_REQUEST_GET_PHONEBOOK_STORAGE_INFO 10007
-#define RIL_REQUEST_GET_PHONEBOOK_ENTRY 10008
-#define RIL_REQUEST_ACCESS_PHONEBOOK_ENTRY 10009
-#define RIL_REQUEST_DIAL_VIDEO_CALL 10010
-#define RIL_REQUEST_CALL_DEFLECTION 10011
-#define RIL_REQUEST_READ_SMS_FROM_SIM 10012
-#define RIL_REQUEST_USIM_PB_CAPA 10013
-#define RIL_REQUEST_LOCK_INFO 10014
-
-#define RIL_REQUEST_DIAL_EMERGENCY 10016
-#define RIL_REQUEST_GET_STOREAD_MSG_COUNT 10017
-#define RIL_REQUEST_STK_SIM_INIT_EVENT 10018
-#define RIL_REQUEST_GET_LINE_ID 10019
-#define RIL_REQUEST_SET_LINE_ID 10020
-#define RIL_REQUEST_GET_SERIAL_NUMBER 10021
-#define RIL_REQUEST_GET_MANUFACTURE_DATE_NUMBER 10022
-#define RIL_REQUEST_GET_BARCODE_NUMBER 10023
-#define RIL_REQUEST_UICC_GBA_AUTHENTICATE_BOOTSTRAP 10024
-#define RIL_REQUEST_UICC_GBA_AUTHENTICATE_NAF 10025
-#define RIL_REQUEST_SIM_TRANSMIT_BASIC 10026
-#define RIL_REQUEST_SIM_OPEN_CHANNEL 10027
-#define RIL_REQUEST_SIM_CLOSE_CHANNEL 10028
-#define RIL_REQUEST_SIM_TRANSMIT_CHANNEL 10029
-#define RIL_REQUEST_SIM_AUTH 10030
-#define RIL_REQUEST_PS_ATTACH 10031
-#define RIL_REQUEST_PS_DETACH 10032
-#define RIL_REQUEST_ACTIVATE_DATA_CALL 10033
-#define RIL_REQUEST_CHANGE_SIM_PERSO 10034
-#define RIL_REQUEST_ENTER_SIM_PERSO 10035
-#define RIL_REQUEST_GET_TIME_INFO 10036
-#define RIL_REQUEST_OMADM_SETUP_SESSION 10037
-#define RIL_REQUEST_OMADM_SERVER_START_SESSION 10038
-#define RIL_REQUEST_OMADM_CLIENT_START_SESSION 10039
-#define RIL_REQUEST_OMADM_SEND_DATA 10040
-#define RIL_REQUEST_CDMA_GET_DATAPROFILE 10041
-#define RIL_REQUEST_CDMA_SET_DATAPROFILE 10042
-#define RIL_REQUEST_CDMA_GET_SYSTEMPROPERTIES 10043
-#define RIL_REQUEST_CDMA_SET_SYSTEMPROPERTIES 10044
-#define RIL_REQUEST_SEND_SMS_COUNT 10045
-#define RIL_REQUEST_SEND_SMS_MSG 10046
-#define RIL_REQUEST_SEND_SMS_MSG_READ_STATUS 10047
-#define RIL_REQUEST_MODEM_HANGUP 10048
-#define RIL_REQUEST_SET_SIM_POWER 10049
-#define RIL_REQUEST_SET_PREFERRED_NETWORK_LIST 10050
-#define RIL_REQUEST_GET_PREFERRED_NETWORK_LIST 10051
-#define RIL_REQUEST_HANGUP_VT 10052
+/**
+ * RIL_REQUEST_UPDATE_ADN_RECORD
+ *
+ * Requests ADN count of the the SIM card
+ *
+ * "data" is RIL_AdnRecordInfo *
+ *
+ * "response" is const int *
+ *
+ * Valid errors:
+ *  Must never fail
+ */
+#define RIL_REQUEST_UPDATE_ADN_RECORD 141
 
 /***********************************************************************/
 
@@ -5259,6 +5308,7 @@ typedef struct {
 #define RIL_RESPONSE_ACKNOWLEDGEMENT 800
 
 /***********************************************************************/
+
 
 #define RIL_UNSOL_RESPONSE_BASE 1000
 
@@ -5868,45 +5918,28 @@ typedef struct {
   *
   */
 #define RIL_UNSOL_PCO_DATA 1046
+/**
+ * RIL_UNSOL_RESPONSE_ADN_INIT_DONE
+ *
+ * Called when the ADN has already init done,
+ *
+ * "data" is NULL.
+ *
+ */
+#define RIL_UNSOL_RESPONSE_ADN_INIT_DONE 1047
+
+/**
+ * RIL_UNSOL_RESPONSE_ADN_RECORDS
+ *
+ * Called when there is a group of ADN record report,
+ *
+ * "data" is the RIL_ADN structure.
+ *
+ */
+#define RIL_UNSOL_RESPONSE_ADN_RECORDS 1048
 
 /***********************************************************************/
 
-/* SAMSUNG RESPONSE */
-#define SAMSUNG_UNSOL_RESPONSE_BASE 11000
-
-#define RIL_UNSOL_RELEASE_COMPLETE_MESSAGE 11001
-#define RIL_UNSOL_STK_SEND_SMS_RESULT 11002
-#define RIL_UNSOL_STK_CALL_CONTROL_RESULT 11003
-#define RIL_UNSOL_DUN_CALL_STATUS 11004
-
-#define RIL_UNSOL_O2_HOME_ZONE_INFO 11007
-#define RIL_UNSOL_DEVICE_READY_NOTI 11008
-#define RIL_UNSOL_GPS_NOTI 11009
-#define RIL_UNSOL_AM 11010
-#define RIL_UNSOL_DUN_PIN_CONTROL_SIGNAL 11011
-#define RIL_UNSOL_DATA_SUSPEND_RESUME 11012
-#define RIL_UNSOL_SAP 11013
-
-#define RIL_UNSOL_SIM_SMS_STORAGE_AVAILALE 11015
-#define RIL_UNSOL_HSDPA_STATE_CHANGED 11016
-#define RIL_UNSOL_WB_AMR_STATE 11017
-#define RIL_UNSOL_TWO_MIC_STATE 11018
-#define RIL_UNSOL_DHA_STATE 11019
-#define RIL_UNSOL_UART 11020
-#define RIL_UNSOL_RESPONSE_HANDOVER 11021
-#define RIL_UNSOL_IPV6_ADDR 11022
-#define RIL_UNSOL_NWK_INIT_DISC_REQUEST 11023
-#define RIL_UNSOL_RTS_INDICATION 11024
-#define RIL_UNSOL_OMADM_SEND_DATA 11025
-#define RIL_UNSOL_DUN 11026
-#define RIL_UNSOL_SYSTEM_REBOOT 11027
-#define RIL_UNSOL_VOICE_PRIVACY_CHANGED 11028
-#define RIL_UNSOL_UTS_GETSMSCOUNT 11029
-#define RIL_UNSOL_UTS_GETSMSMSG 11030
-#define RIL_UNSOL_UTS_GET_UNREAD_SMS_STATUS 11031
-#define RIL_UNSOL_MIP_CONNECT_STATUS 11032
-
-/***********************************************************************/
 
 #if defined(ANDROID_MULTI_SIM)
 /**
