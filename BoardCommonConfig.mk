@@ -27,4 +27,3 @@ TARGET_RIL_VARIANT := caf
 
 # Radio
 BOARD_GLOBAL_CFLAGS += -DDISABLE_ASHMEM_TRACKING
-BOARD_RIL_CLASS := ../../../device/samsung/smdk4412-qcom-common/ril
