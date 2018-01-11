@@ -41,6 +41,5 @@ PRODUCT_COPY_FILES += \
 
 # RIL
 PRODUCT_PACKAGES += \
-    libsecril-client \
-    libsecril-client-sap
+   libsecnativefeature
 
